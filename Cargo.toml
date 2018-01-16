@@ -1,0 +1,11 @@
+[package]
+name = "postImpl"
+version = "0.1.0"
+authors = ["y2k"]
+
+[dependencies]
+iron="*"
+router="*"
+serde="*"
+serde_json="*"
+serde_derive="*"

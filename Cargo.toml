@@ -4,8 +4,17 @@ version = "0.1.0"
 authors = ["y2k"]
 
 [dependencies]
+hyper="*"
 iron="*"
 router="*"
 serde="*"
 serde_json="*"
 serde_derive="*"
+
+[[bin]]
+name = "server"
+path = "src/main.rs"
+
+[[bin]]
+name = "connector"
+path = "src/connector.rs"

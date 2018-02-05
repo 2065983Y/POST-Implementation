@@ -12,6 +12,7 @@ mod http_listener;
 mod local;
 mod listener;
 mod ICarrier;
+mod protocol_handler;
 
 use listener::Listener;
 

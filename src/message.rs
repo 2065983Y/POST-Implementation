@@ -3,12 +3,12 @@
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Message<T> {
-    data: T
+    pub data: T
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Point<U> {
-	x: U,
-	y: U
+	pub x: U,
+	pub y: U
 }
 

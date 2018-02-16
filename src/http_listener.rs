@@ -17,7 +17,7 @@ use http_listener::iron::status;
 use std::io::Read;
 use message::Message;
 use message::Point;
-use ICarrier::ICarrier;
+use iCarrier::ICarrier;
 
 
 pub struct HttpListener {
@@ -53,19 +53,20 @@ impl listener::Listener for HttpListener {
 
 impl ICarrier for HttpListener {
 	type Item = Point<i32>;
+	type Transmitter = Request<'static, 'static>;
 
 	fn data_rcv(request: &mut Request) -> IronResult<Response> {
-		    let mut payload = String::new();
-		    request.body.read_to_string(&mut payload).unwrap();
-			println!("Read: {:?}", payload);
-			println!("Received a request from: {:?}", request.remote_addr);
+	    let mut payload = String::new();
+	    request.body.read_to_string(&mut payload).unwrap();
+		println!("Read: {:?}", payload);
+		println!("Received a request from: {:?}", request.remote_addr);
 
-			let msg: Message<Self::Item> = serde_json::from_str(&payload).unwrap();
-			
-			Self::msg_rcv(msg, Self::on_msg_rcv);
-			//_on_msg_rcv(payload);			
-			
-		    Ok(Response::with((status::Ok, payload)))
+		let msg: Message<Self::Item> = serde_json::from_str(&payload).unwrap();
+		
+		Self::msg_rcv(msg, Self::on_msg_rcv);
+		//_on_msg_rcv(payload);			
+		
+	    Ok(Response::with((status::Ok, payload)))
     }
 
 	fn msg_rcv(message: Message<Self::Item>, f: fn(Message<Self::Item>)) {
@@ -75,6 +76,11 @@ impl ICarrier for HttpListener {
 
 	fn on_msg_rcv(message: Message<Self::Item>) {
 		println!("{:?}", message);		
+	}
+
+	fn send_msg<T>(&self, message: T) {
+		
+
 	}
 
 

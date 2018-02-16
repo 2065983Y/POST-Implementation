@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = ["y2k"]
 
 [dependencies]
-hyper="*"
+hyper="0.10.*"
 iron="*"
 router="*"
 serde="*"

@@ -6,13 +6,12 @@ extern crate iron;
 
 mod remote;
 mod message;
-mod ISendable;
+mod iSendable;
 mod iReceivable;
 mod iCarrier;
 
 use hyper::*;
 use std::io::Read;
-use iron::prelude::*;
 
 use iCarrier::ICarrier;
 use remote::Remote;
@@ -40,7 +39,7 @@ impl<'a> HttpClient<'a> {
 	}
 }
 
-impl ISendable::ISendable<String> for Message<Point<i32>> {
+impl iSendable::ISendable<String> for Message<Point<i32>> {
 	type Item=Point<i32>;
 
 	fn encode(&self) -> String
@@ -59,7 +58,7 @@ impl<'a> ICarrier for HttpClient<'a> {
 	type Item=Point<i32>;
 	type Transmitter=String;
 
-	fn send_msg<T>(&self, msg: T) where T: ISendable::ISendable<String> {
+	fn send_msg<T>(&self, msg: T) where T: iSendable::ISendable<String> {
 		let body_str = msg.encode();
 		println!("Decoded msg: {}", body_str);
 
@@ -96,9 +95,9 @@ impl<'a> ICarrier for HttpClient<'a> {
 fn main() {
 
 	let remote = Remote {hostname: String::from("localhost"), port: 3005};
-	let httpClient = HttpClient::new(&remote);
+	let http_client = HttpClient::new(&remote);
 
 	let msg = Message { data: Point {x: 5, y: 42} };
-	httpClient.send_msg(msg);
+	http_client.send_msg(msg);
 
 }

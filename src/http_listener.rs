@@ -18,6 +18,7 @@ use std::io::Read;
 use message::Message;
 use message::Point;
 use iCarrier::ICarrier;
+use iReceivable;
 
 
 pub struct HttpListener {
@@ -29,6 +30,21 @@ impl HttpListener {
 		Self {}
 	}
 
+	fn recv(request: &mut Request) -> IronResult<Response>{
+		
+
+		//_on_msg_rcv(payload);
+//		let mut payload = String::new();
+//	    request.body.read_to_string(&mut payload).unwrap();
+//		let payload = "fake payload";		
+
+		let data = Self::data_rcv(request);	
+
+		let payload = serde_json::to_string(&data).unwrap();		
+		
+	    Ok(Response::with((status::Ok, payload)))
+	}
+
 }
 
 impl listener::Listener for HttpListener {
@@ -37,7 +53,7 @@ impl listener::Listener for HttpListener {
 	fn listen(&self, local: local::Local) {
 		let mut router = Router::new();
 
-		router.post("/message", Self::data_rcv, "message_receipt");
+		router.post("/message", Self::recv, "message_receipt");
 
 
 		println!("Listening on port {}", local.port);
@@ -50,31 +66,38 @@ impl listener::Listener for HttpListener {
 
 }
 
+impl<'a, 'b, 'c> iReceivable::IReceivable<Message<Point<i32>>> for &'c mut Request<'a, 'b> {
+
+	fn decode(&mut self) -> Message<Point<i32>> {
+
+		let mut payload = String::new();
+	    self.body.read_to_string(&mut payload).unwrap();
+		println!("Read: {:?}", payload);
+		println!("Received a request from: {:?}", self.remote_addr);		
+
+		serde_json::from_str(&payload).unwrap()
+	}
+}
+
 
 impl ICarrier for HttpListener {
 	type Item = Point<i32>;
 	type Transmitter = Request<'static, 'static>;
 
-	fn data_rcv(request: &mut Request) -> IronResult<Response> {
-	    let mut payload = String::new();
-	    request.body.read_to_string(&mut payload).unwrap();
-		println!("Read: {:?}", payload);
-		println!("Received a request from: {:?}", request.remote_addr);
+	fn data_rcv<T>(mut received: T) -> Message<Self::Item>
+where T: iReceivable::IReceivable<Message<Self::Item>> {
 
-		let msg: Message<Self::Item> = serde_json::from_str(&payload).unwrap();
-		
-		Self::msg_rcv(msg, Self::on_msg_rcv);
-		//_on_msg_rcv(payload);			
-		
-	    Ok(Response::with((status::Ok, payload)))
+		let msg = received.decode();
+		Self::msg_rcv(&msg, Self::on_msg_rcv);
+		msg
     }
 
-	fn msg_rcv(message: Message<Self::Item>, f: fn(Message<Self::Item>)) {
+	fn msg_rcv(message: &Message<Self::Item>, f: fn(&Message<Self::Item>)) {
 		println!("Received a message");
 		f(message);
 	}
 
-	fn on_msg_rcv(message: Message<Self::Item>) {
+	fn on_msg_rcv(message: &Message<Self::Item>) {
 		println!("{:?}", message);		
 	}
 

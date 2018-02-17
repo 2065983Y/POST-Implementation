@@ -7,6 +7,7 @@ extern crate iron;
 mod remote;
 mod message;
 mod ISendable;
+mod iReceivable;
 mod iCarrier;
 
 use hyper::*;
@@ -55,7 +56,7 @@ impl ISendable::ISendable<String> for Message<Point<i32>> {
 }
 
 impl<'a> ICarrier for HttpClient<'a> {
-	type Item=Message<Point<i32>>;
+	type Item=Point<i32>;
 	type Transmitter=String;
 
 	fn send_msg<T>(&self, msg: T) where T: ISendable::ISendable<String> {
@@ -74,17 +75,17 @@ impl<'a> ICarrier for HttpClient<'a> {
 
 	}
 
-	fn data_rcv(request: &mut Request) -> IronResult<Response>
+	fn data_rcv<T>(request: T) -> Message<Self::Item>
 	{
 		unimplemented!();
 	}
 
-	fn msg_rcv(message: Message<Self::Item>, f: fn(Message<Self::Item>) ) 
+	fn msg_rcv(message: &Message<Self::Item>, f: fn(&Message<Self::Item>) ) 
 	{
 		unimplemented!();		
 	}
 
-	fn on_msg_rcv(message: Message<Self::Item>)
+	fn on_msg_rcv(message: &Message<Self::Item>)
 	{
 		unimplemented!();		
 	}

@@ -18,3 +18,7 @@ path = "src/main.rs"
 [[bin]]
 name = "connector"
 path = "src/connector.rs"
+
+[[bin]]
+name = "dns_client"
+path = "src/dns_client.rs"

@@ -21,14 +21,14 @@ use iSendable::ISendable;
 use message::Message;
 use iReceivable::IReceivable;
 
-struct Dns_client {
+struct DnsClient {
 	dns_addr: Ipv4Addr,
 	local_socket: UdpSocket,
-	dns_port: i32
+	dns_port: u16
 }
 
 
-impl Dns_client {
+impl DnsClient {
 
 	//
 	//	PRIVATE Methods
@@ -88,6 +88,22 @@ impl Dns_client {
 	}
 
 
+	fn recv(&self) {
+		let mut response_buf = [0; 100];
+		let (n, address) = self.local_socket.recv_from(&mut response_buf).unwrap();
+
+		println!("Got {} bytes from {} ", n, address);
+		println!("Processing...");
+		let mut response_vec: Vec<u8> = Vec::new();
+		for &x in response_buf.iter() 
+		{
+			response_vec.push(x);
+		}
+		let msg = Message { data: response_vec };
+		Self::data_rcv(msg);
+		println!("Done reconsctructing message. Parsing messsage...");
+	}
+
 	//
 	//	PUBLIC Methods
 	//
@@ -105,19 +121,71 @@ impl Dns_client {
 		
 		//TODO:
 		// call ICarrier send
+		let query = Message {data: (addr, (7,9)) };
+		self.send_msg(query);
 	}
 
 }
 
 
-impl ICarrier for Dns_client {
-	type Item = Vec<u8>;
+impl IReceivable<Message<String>> for Message<Vec<u8>> 
+{
+	fn decode(&mut self) -> Message<String> {
+		println!("Decoding");
+		Message{ data: format!("{:?}", self) }
+	}
+
+}
+
+
+impl ISendable<Vec<u8>> for Message<(String, (u8, u8))> 
+{
+	type Item=(String, (u8,u8));
+
+	fn encode(&self) -> Vec<u8>
+	{
+		let mut result: Vec<u8> = Vec::new();
+		result.push((&self.data.1).0); // message id 1
+		result.push((&self.data.1).1); // message id 2
+		result.push(0x01); // qr, opcode, aa, tc, rd
+		result.push(0x00); // ra, res1, res2, res3, rcode
+		result.push(0x00); // qdcount 1
+		result.push(0x01); // qdcount 2
+		result.push(0x00); // ancount 1
+		result.push(0x00); // ancount 2
+		result.push(0x00); // nscount 1
+		result.push(0x00); // nscount 2
+		result.push(0x00); // arcount 1
+		result.push(0x00); // arcount 2
+
+		for p in (&self.data.0).split(".") {
+		  result.push(p.as_bytes().len() as u8); // length
+		  for &c in p.as_bytes() {
+		    result.push(c as u8); // query
+		  }
+		}
+		result.push(0x00); // end name
+
+		result.push(0x00); // qtype 1
+		result.push(0x01); // qtype 2
+		result.push(0x00); // qclass 1
+		result.push(0x01); // qclass 2
+		result	
+	}
+}
+
+
+impl ICarrier for DnsClient {
+	type Item = String;
 	type Transmitter = Vec<u8>;
 
-
-	fn data_rcv<T>(received: T) -> Message<Self::Item>
+	// TODO: can we get around passing mut arg?
+	fn data_rcv<T>(mut received: T) -> Message<Self::Item>
 		where T: IReceivable<Message<Self::Item>>
 	{
+		println!("Called recv");
+		let res = received.decode();
+		println!("{:?}", res);
 		unimplemented!();
 	}
 
@@ -133,8 +201,17 @@ impl ICarrier for Dns_client {
 
 	fn send_msg<T>(&self, message: T) where T: ISendable<Self::Transmitter>
 	{
-		unimplemented!();
+		let encoded = message.encode();
+		println!("{:?}", encoded);
+
+		let bytes_written = &self.local_socket.send_to(&encoded, (self.dns_addr, self.dns_port)).expect("Failed to send DNS request");
+
+		println!("Wrote {} bytes", bytes_written);
+
+		//TODO: is call to recv sensible here?
+		self.recv();
 	}
+
 
 }
 
@@ -142,7 +219,7 @@ fn main()
 {
 	let query_addr = String::from("www.google.co.uk");
 
-	let dns_client = Dns_client::new();
+	let dns_client = DnsClient::new();
 	dns_client.query_addr(query_addr);
 
 

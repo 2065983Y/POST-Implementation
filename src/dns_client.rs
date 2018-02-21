@@ -131,11 +131,54 @@ impl DnsClient {
 impl IReceivable<Message<String>> for Message<Vec<u8>> 
 {
 	fn decode(&mut self) -> Message<String> {
-		println!("Decoding");
+		println!("Decoding...");
+		//check messsage id
+		let mut iter = self.data.iter();
+
+		//TODO: Hardcoded, replace...
+		assert_byte( iter.next(), &(7 as u8));
+		assert_byte(iter.next(), &(9 as u8));	
+
+		process_byte(iter.next(), |b| {
+				check_single_bit(b, 7);
+				*b			
+			}
+		);		
+
 		Message{ data: format!("{:?}", self) }
 	}
 
 }
+
+
+fn process_byte<F>(byte_opt: Option<&u8>, processor: F) -> u8
+	where F: Fn(&u8) -> u8
+{
+	let b = byte_opt.expect("Option is empty");
+	processor(b)
+}
+
+
+fn check_single_bit(b: &u8, position: u32) -> bool
+{
+	b & (1 << position) != 0
+}
+
+
+fn assert_byte(actual: Option<&u8>, expected: &u8) 
+{
+	process_byte(actual, |b| {
+			if expected != b
+			{
+				println!("Expected {} but was {}", expected, b);
+				panic!();
+			}
+			*b
+		}
+	);		
+}
+
+
 
 
 impl ISendable<Vec<u8>> for Message<(String, (u8, u8))> 

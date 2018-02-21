@@ -21,6 +21,7 @@ use iSendable::ISendable;
 use message::Message;
 use iReceivable::IReceivable;
 
+#[derive(Debug)]
 struct DnsClient {
 	dns_addr: Ipv4Addr,
 	local_socket: UdpSocket,
@@ -35,7 +36,7 @@ impl DnsClient {
 	//
 
 	fn bind_client_socket() -> UdpSocket {
-		let client_local_port = "127.0.0.1:65530"; // TODO randomise and retry
+		let client_local_port = "0.0.0.0:65530"; // TODO randomise and retry
 		let udp_socket = UdpSocket::bind(client_local_port).ok().
 			expect(format!("Could not bind UDP socket to {}", client_local_port).as_str());
 
@@ -121,6 +122,7 @@ impl DnsClient {
 		
 		//TODO:
 		// call ICarrier send
+		println!("Client: {:?}", self);
 		let query = Message {data: (addr, (7,9)) };
 		self.send_msg(query);
 	}
@@ -136,14 +138,17 @@ impl IReceivable<Message<String>> for Message<Vec<u8>>
 		let mut iter = self.data.iter();
 
 		//TODO: Hardcoded, replace...
-		assert_byte( iter.next(), &(7 as u8));
-		assert_byte(iter.next(), &(9 as u8));	
+		assert_byte(&iter.next(), &(7 as u8), "First byte of response id needs to be the same.");
+		assert_byte(&iter.next(), &(9 as u8), "Second Byte of response id needs to be the same.");	
 
-		process_byte(iter.next(), |b| {
-				check_single_bit(b, 7);
-				*b			
+		let mut decodedStr = String::new();
+
+		process_byte(&iter.next(), |b| {
+				decodedStr = format!("{}Is response: {}", decodedStr, check_single_bit(b, 7));
 			}
 		);		
+
+		println!("DECODED: {}", decodedStr);		
 
 		Message{ data: format!("{:?}", self) }
 	}
@@ -151,8 +156,8 @@ impl IReceivable<Message<String>> for Message<Vec<u8>>
 }
 
 
-fn process_byte<F>(byte_opt: Option<&u8>, processor: F) -> u8
-	where F: Fn(&u8) -> u8
+fn process_byte<F>(byte_opt: &Option<&u8>, mut processor: F)
+	where F: FnMut(&u8)
 {
 	let b = byte_opt.expect("Option is empty");
 	processor(b)
@@ -165,15 +170,14 @@ fn check_single_bit(b: &u8, position: u32) -> bool
 }
 
 
-fn assert_byte(actual: Option<&u8>, expected: &u8) 
+fn assert_byte(actual: &Option<&u8>, expected: &u8, msg: &str) 
 {
 	process_byte(actual, |b| {
 			if expected != b
 			{
-				println!("Expected {} but was {}", expected, b);
+				println!("{} Expected {} but was {}", msg, expected, b);
 				panic!();
 			}
-			*b
 		}
 	);		
 }

@@ -10,6 +10,9 @@ router="*"
 serde="*"
 serde_json="*"
 serde_derive="*"
+num="*"
+num-derive="*"
+num-traits="*"
 
 [[bin]]
 name = "server"

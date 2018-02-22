@@ -31,7 +31,6 @@ impl HttpListener {
 	}
 
 	fn recv(request: &mut Request) -> IronResult<Response>{
-		
 
 		//_on_msg_rcv(payload);
 //		let mut payload = String::new();

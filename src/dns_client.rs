@@ -1,6 +1,11 @@
+extern crate num;
+extern crate serde_json;
+extern crate num_traits;
+
 #[macro_use]
 extern crate serde_derive;
-extern crate serde_json;
+#[macro_use]
+extern crate num_derive;
 
 
 mod iCarrier;
@@ -15,6 +20,7 @@ use std::process::exit;
 use std::os::unix::io::AsRawFd;
 use std::io::Read;
 use std::str::FromStr;
+use num::FromPrimitive;
 
 use iCarrier::ICarrier;
 use iSendable::ISendable;
@@ -91,6 +97,7 @@ impl DnsClient {
 
 	fn recv(&self) {
 		let mut response_buf = [0; 100];
+		//sometimes does not complete....
 		let (n, address) = self.local_socket.recv_from(&mut response_buf).unwrap();
 
 		println!("Got {} bytes from {} ", n, address);
@@ -138,25 +145,130 @@ impl IReceivable<Message<String>> for Message<Vec<u8>>
 		let mut iter = self.data.iter();
 
 		//TODO: Hardcoded, replace...
-		assert_byte(&iter.next(), &(7 as u8), "First byte of response id needs to be the same.");
-		assert_byte(&iter.next(), &(9 as u8), "Second Byte of response id needs to be the same.");	
+		assert_byte(iter.next(), &(7 as u8), "First byte of response id needs to be the same.");
+		assert_byte(iter.next(), &(9 as u8), "Second Byte of response id needs to be the same.");	
 
 		let mut decodedStr = String::new();
 
-		process_byte(&iter.next(), |b| {
-				decodedStr = format!("{}Is response: {}", decodedStr, check_single_bit(b, 7));
+		process_byte(iter.next(), |b| {
+				decodedStr = format!("{}\n\tIs response: {}", decodedStr, check_single_bit(b, 7));
+				decodedStr = format!("{}\n\tStandart Query: {}", decodedStr,
+					!(check_single_bit(b, 6) && check_single_bit(b, 5) && check_single_bit(b, 4) && check_single_bit(b, 3)) //TODO: verify
+									);
+				decodedStr = format!("{}\n\tAuthorative Answer: {}", decodedStr, check_single_bit(b, 2));
+				decodedStr = format!("{}\n\tMsg Truncated: {}", decodedStr, check_single_bit(b, 1));
+				decodedStr = format!("{}\n\tRecursion Desired: {}", decodedStr, check_single_bit(b, 0));
 			}
-		);		
+		);
 
-		println!("DECODED: {}", decodedStr);		
+		process_byte(iter.next(), |b| {
+				decodedStr = format!("{}\n\tRecursion available: {}", decodedStr, check_single_bit(b, 7));
+				decodedStr = format!("{}\n\tReserved bits preserved: {}", decodedStr, !(check_single_bit(b, 6) && check_single_bit(b, 5) && check_single_bit(b, 4)));
+				let rcode = b & 15;
+				let rcode_opt :Option<Rcode> = FromPrimitive::from_u8(rcode);
+				println!("{:?}", rcode_opt);
+				let rcode_obj = rcode_opt.expect(format!("Cannot decode {} as rcode", rcode).as_str());
+				if rcode_obj != Rcode::ROk
+				{
+					panic!();
+				}
+				decodedStr = format!("{}\n\tRcode: {:?}", decodedStr, rcode_obj);
+			}
+		);
 
-		Message{ data: format!("{:?}", self) }
+		decodedStr = format!("{}\n\tQDCOUNT: {}", decodedStr, get_two_byte_value(iter.next(), iter.next()));
+ 		decodedStr = format!("{}\n\tANCOUNT: {}", decodedStr, get_two_byte_value(iter.next(), iter.next()));
+  		decodedStr = format!("{}\n\tNSCOUNT: {}", decodedStr, get_two_byte_value(iter.next(), iter.next()));
+  		decodedStr = format!("{}\n\tARCOUNT: {}", decodedStr, get_two_byte_value(iter.next(), iter.next()));
+
+		let mut name_part_byte: u8;
+		let mut name = String::new();
+  		while {
+    		name_part_byte = *iter.next().unwrap();
+    		name_part_byte != 0
+  		} {
+    		let &part_length = &name_part_byte;
+    		for _ in 0..part_length {
+      			name.push((*iter.next().unwrap()) as char);
+    		}
+    		name.push('.');
+		}
+		name.pop();
+
+		decodedStr = format!("{}\n\tQNAME: {}", decodedStr, name);		
+
+		decodedStr = format!("{}\n\tQTYPE: {}", decodedStr, print_type(get_two_byte_value(iter.next(), iter.next()) as u8));
+		decodedStr = format!("{}\n\tQCLASS: {}", decodedStr, get_two_byte_value(iter.next(), iter.next()));
+
+  		let first_name_byte = *iter.next().unwrap();
+  		let first_name_bit = check_single_bit(&first_name_byte, 7);
+  		let second_name_bit = check_single_bit(&first_name_byte, 6);
+  		let response_name_is_pointer = first_name_bit && second_name_bit;
+  		decodedStr = format!("{}\n\tIs pointer? {}", decodedStr, response_name_is_pointer);
+  		
+		if response_name_is_pointer {
+    		iter.next();
+		}
+	
+		decodedStr = format!("{}\n\tTYPE: {}", decodedStr, print_type(get_two_byte_value(iter.next(), iter.next()) as u8));
+  		decodedStr = format!("{}\n\tCLASS: {}", decodedStr, get_two_byte_value(iter.next(), iter.next()));
+
+  		let ttl_byte_1 = *iter.next().unwrap() as u32;
+  		let ttl_byte_2 = *iter.next().unwrap() as u32;
+  		let ttl_byte_3 = *iter.next().unwrap() as u32;
+  		let ttl_byte_4 = *iter.next().unwrap() as u32;
+  		let ttl = (ttl_byte_1 << 24) + (ttl_byte_2 << 16) + (ttl_byte_3 << 8) + (ttl_byte_4 << 0);
+  		decodedStr = format!("{}\n\tttl: {} {} {} {} {}", decodedStr, ttl_byte_1, ttl_byte_2, ttl_byte_3, ttl_byte_4, ttl);
+
+  		let rdlength = get_two_byte_value(iter.next(), iter.next());
+  		decodedStr = format!("{}\n\trdlength: {}", decodedStr, rdlength);
+
+  		decodedStr = format!("{}\n\tRESPONSE: ", decodedStr);
+		let mut ip = String::new();
+  		for _ in 0..rdlength {
+    		ip = format!("{}{}.", ip, *iter.next().unwrap());
+		}
+		ip.pop();
+		decodedStr = format!("{}\n\t{}", decodedStr, ip);
+
+		println!("Raw data: {:?}", self);
+		println!("Devoded: {}", decodedStr);
+
+		Message{ data: format!("{}", decodedStr) }
 	}
 
 }
 
+#[derive(Debug, PartialEq, FromPrimitive)]
+enum Rcode {
+  ROk = 0,
+  FormatError = 1,
+  ServerFailure = 2,
+  NameError = 3,
+  NotImplemented = 4,
+  Refused = 5
+}
 
-fn process_byte<F>(byte_opt: &Option<&u8>, mut processor: F)
+#[derive(Debug, PartialEq, FromPrimitive)]
+enum RecordType {
+  A = 1,
+  NS = 2,
+  CNAME = 5,
+  SOA = 6,
+  WKS = 11,
+  PTR = 12,
+  MX = 15,
+  SRV = 33,
+  A6 = 38
+}
+
+fn print_type(type_code: u8) -> String 
+{
+	let t: RecordType = FromPrimitive::from_u8(type_code).expect(format!("{} is an unknown type", type_code).as_str());
+	format!("{:?}", t)
+}
+
+fn process_byte<F>(byte_opt: Option<&u8>, mut processor: F)
 	where F: FnMut(&u8)
 {
 	let b = byte_opt.expect("Option is empty");
@@ -170,7 +282,7 @@ fn check_single_bit(b: &u8, position: u32) -> bool
 }
 
 
-fn assert_byte(actual: &Option<&u8>, expected: &u8, msg: &str) 
+fn assert_byte(actual: Option<&u8>, expected: &u8, msg: &str) 
 {
 	process_byte(actual, |b| {
 			if expected != b
@@ -180,6 +292,10 @@ fn assert_byte(actual: &Option<&u8>, expected: &u8, msg: &str)
 			}
 		}
 	);		
+}
+
+fn get_two_byte_value(msb: Option<&u8>, lsb: Option<&u8>) -> u32 {
+	(*msb.unwrap() as u32) << 8 | (*lsb.unwrap() as u32)	
 }
 
 
@@ -232,18 +348,19 @@ impl ICarrier for DnsClient {
 	{
 		println!("Called recv");
 		let res = received.decode();
-		println!("{:?}", res);
-		unimplemented!();
+		Self::msg_rcv(&res, Self::on_msg_rcv);
+		res
 	}
 
 	fn msg_rcv(message: &Message<Self::Item>, f: fn(&Message<Self::Item>) )
 	{
-		unimplemented!();
+		println!("received a msg: {:?}", message);
+		f(message);
 	}
 
 	fn on_msg_rcv(message: &Message<Self::Item>)
 	{
-		unimplemented!();
+		println!("On func recv function");
 	}
 
 	fn send_msg<T>(&self, message: T) where T: ISendable<Self::Transmitter>

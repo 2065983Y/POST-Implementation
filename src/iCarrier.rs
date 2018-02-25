@@ -16,12 +16,16 @@ pub trait ICarrier {
 	type Transmitter;
 	//fn init(&self, remote: Remote) -> Box<ICarrier>;
 
-	fn data_rcv<T>(received: T) -> Message<Self::Item>
+	fn data_recv<T>(received: T) -> Message<Self::Item>
 		where T: IReceivable<Message<Self::Item>>;
 
-	fn msg_rcv(message: &Message<Self::Item>, f: fn(&Message<Self::Item>) );
+	fn msg_recv(message: &Message<Self::Item> );
+	//TODO: Default impl, find a way to restrict self to impl MessageHandler
+	//{
+	//	self.on_msg_recv(message);
+	//}
 
-	fn on_msg_rcv(message: &Message<Self::Item>);
+//	fn on_msg_rcv(message: &Message<Self::Item>);
 
 	fn send_msg<T>(&self, message: T) where T: ISendable<Self::Transmitter>;
 

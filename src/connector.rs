@@ -74,20 +74,16 @@ impl<'a> ICarrier for HttpClient<'a> {
 
 	}
 
-	fn data_rcv<T>(request: T) -> Message<Self::Item>
+	fn data_recv<T>(request: T) -> Message<Self::Item>
 	{
 		unimplemented!();
 	}
 
-	fn msg_rcv(message: &Message<Self::Item>, f: fn(&Message<Self::Item>) ) 
+	fn msg_recv(message: &Message<Self::Item>) 
 	{
 		unimplemented!();		
 	}
 
-	fn on_msg_rcv(message: &Message<Self::Item>)
-	{
-		unimplemented!();		
-	}
 
 }
 

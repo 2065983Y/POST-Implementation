@@ -12,6 +12,7 @@ mod iCarrier;
 mod message;
 mod iSendable;
 mod iReceivable;
+mod message_handler;
 
 
 use std::net::{Ipv4Addr, UdpSocket};
@@ -26,6 +27,7 @@ use iCarrier::ICarrier;
 use iSendable::ISendable;
 use message::Message;
 use iReceivable::IReceivable;
+use message_handler::MessageHandler;
 
 #[derive(Debug)]
 struct DnsClient {
@@ -108,7 +110,7 @@ impl DnsClient {
 			response_vec.push(x);
 		}
 		let msg = Message { data: response_vec };
-		Self::data_rcv(msg);
+		Self::data_recv(msg);
 		println!("Done reconsctructing message. Parsing messsage...");
 	}
 
@@ -338,29 +340,27 @@ impl ISendable<Vec<u8>> for Message<(String, (u8, u8))>
 }
 
 
+
+
+
 impl ICarrier for DnsClient {
 	type Item = String;
 	type Transmitter = Vec<u8>;
 
 	// TODO: can we get around passing mut arg?
-	fn data_rcv<T>(mut received: T) -> Message<Self::Item>
+	fn data_recv<T>(mut received: T) -> Message<Self::Item>
 		where T: IReceivable<Message<Self::Item>>
 	{
 		println!("Called recv");
 		let res = received.decode();
-		Self::msg_rcv(&res, Self::on_msg_rcv);
+		Self::msg_recv(&res);
 		res
 	}
 
-	fn msg_rcv(message: &Message<Self::Item>, f: fn(&Message<Self::Item>) )
+	fn msg_recv(message: &Message<Self::Item>)
 	{
-		println!("received a msg: {:?}", message);
-		f(message);
-	}
-
-	fn on_msg_rcv(message: &Message<Self::Item>)
-	{
-		println!("On func recv function");
+		println!("Received a msg, calling on_msg_recv");
+		Self::on_msg_recv(message);
 	}
 
 	fn send_msg<T>(&self, message: T) where T: ISendable<Self::Transmitter>
@@ -376,6 +376,17 @@ impl ICarrier for DnsClient {
 		self.recv();
 	}
 
+
+}
+
+impl MessageHandler for DnsClient {
+	type Item = String;
+
+	fn on_msg_recv(message: &Message<Self::Item>)
+	{
+		println!("On msg recv function called");
+		println!("Received msg: {:?}", message);
+	}
 
 }
 

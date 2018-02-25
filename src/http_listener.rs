@@ -19,7 +19,7 @@ use message::Message;
 use message::Point;
 use iCarrier::ICarrier;
 use iReceivable;
-
+use message_handler::MessageHandler;
 
 pub struct HttpListener {
 
@@ -37,7 +37,7 @@ impl HttpListener {
 //	    request.body.read_to_string(&mut payload).unwrap();
 //		let payload = "fake payload";		
 
-		let data = Self::data_rcv(request);	
+		let data = Self::data_recv(request);	
 
 		let payload = serde_json::to_string(&data).unwrap();		
 		
@@ -83,27 +83,34 @@ impl ICarrier for HttpListener {
 	type Item = Point<i32>;
 	type Transmitter = Request<'static, 'static>;
 
-	fn data_rcv<T>(mut received: T) -> Message<Self::Item>
+	fn data_recv<T>(mut received: T) -> Message<Self::Item>
 where T: iReceivable::IReceivable<Message<Self::Item>> {
 
 		let msg = received.decode();
-		Self::msg_rcv(&msg, Self::on_msg_rcv);
+		Self::msg_recv(&msg);
 		msg
     }
 
-	fn msg_rcv(message: &Message<Self::Item>, f: fn(&Message<Self::Item>)) {
+	fn msg_recv(message: &Message<Self::Item>) {
 		println!("Received a message");
-		f(message);
+		Self::on_msg_recv(message);
 	}
 
-	fn on_msg_rcv(message: &Message<Self::Item>) {
-		println!("{:?}", message);		
-	}
+	//fn on_msg_rcv(message: &Message<Self::Item>) {
+	//	println!("{:?}", message);		
+	//}
 
 	fn send_msg<T>(&self, message: T) {
 		
 
 	}
+}
 
+impl MessageHandler for HttpListener {
+	type Item = Point<i32>;
 
+	fn on_msg_recv(message: &Message<Self::Item>) 
+	{
+		println!("On Msg Recv fn called with msg: {:?}", message);
+	}
 }

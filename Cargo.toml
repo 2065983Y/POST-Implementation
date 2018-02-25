@@ -16,7 +16,7 @@ num-traits="*"
 
 [[bin]]
 name = "server"
-path = "src/main.rs"
+path = "src/server.rs"
 
 [[bin]]
 name = "connector"

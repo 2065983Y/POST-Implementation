@@ -20,6 +20,9 @@ use message::Point;
 use iCarrier::ICarrier;
 use iReceivable;
 use message_handler::MessageHandler;
+use iReceivable::IReceivable;
+
+type myType = Point<f32>;
 
 pub struct HttpListener {
 
@@ -37,7 +40,10 @@ impl HttpListener {
 //	    request.body.read_to_string(&mut payload).unwrap();
 //		let payload = "fake payload";		
 
-		let data = Self::data_recv(request);	
+		let mut body_data = Vec::new();
+		request.body.read_to_end(&mut body_data);
+
+		let data = Self::data_recv(body_data);	
 
 		let payload = serde_json::to_string(&data).unwrap();		
 		
@@ -65,23 +71,23 @@ impl listener::Listener for HttpListener {
 
 }
 
-impl<'a, 'b, 'c> iReceivable::IReceivable<Message<Point<i32>>> for &'c mut Request<'a, 'b> {
+impl<'a, 'b, 'c> IReceivable<Message<myType>> for Vec<u8> {
 
-	fn decode(&mut self) -> Message<Point<i32>> {
+	fn decode(&mut self) -> Message<myType> {
 
-		let mut payload = String::new();
-	    self.body.read_to_string(&mut payload).unwrap();
-		println!("Read: {:?}", payload);
-		println!("Received a request from: {:?}", self.remote_addr);		
+		println!("{:?}", self);
 
-		serde_json::from_str(&payload).unwrap()
+		let v: Message<myType> = serde_json::from_slice(self).unwrap();
+		println!("{:?}", v);
+
+		v
 	}
 }
 
 
 impl ICarrier for HttpListener {
-	type Item = Point<i32>;
-	type Transmitter = Request<'static, 'static>;
+	type Item = myType;
+	type Transmitter = Message<Vec<u8>>;
 
 	fn data_recv<T>(mut received: T) -> Message<Self::Item>
 where T: iReceivable::IReceivable<Message<Self::Item>> {
@@ -107,7 +113,7 @@ where T: iReceivable::IReceivable<Message<Self::Item>> {
 }
 
 impl MessageHandler for HttpListener {
-	type Item = Point<i32>;
+	type Item = myType;
 
 	fn on_msg_recv(message: &Message<Self::Item>) 
 	{

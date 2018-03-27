@@ -25,3 +25,11 @@ path = "src/connector.rs"
 [[bin]]
 name = "dns_client"
 path = "src/dns_client.rs"
+
+[[bin]]
+name = "test"
+path = "src/test.rs"
+
+[[bin]]
+name = "test2"
+path = "src/test2.rs"

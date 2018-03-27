@@ -63,7 +63,11 @@ impl listener::Listener for HttpListener {
 
 		println!("Listening on port {}", local.port);
 
-		let setup = format!("{}:{}", "localhost", local.port);
+//		ipv4
+//		let setup = format!("{}:{}", "localhost", local.port);
+
+//		ipv6
+		let setup = format!("{}:{}", "::1", local.port);
 
 		Iron::new(router).http(setup).unwrap();
     	//println!("On 3000");

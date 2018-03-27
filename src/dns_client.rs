@@ -1,18 +1,7 @@
-extern crate num;
-extern crate serde_json;
-extern crate num_traits;
-
-#[macro_use]
-extern crate serde_derive;
-#[macro_use]
-extern crate num_derive;
 
 
-mod iCarrier;
-mod message;
-mod iSendable;
-mod iReceivable;
-mod message_handler;
+
+
 
 
 use std::net::{Ipv4Addr, UdpSocket};
@@ -30,7 +19,7 @@ use iReceivable::IReceivable;
 use message_handler::MessageHandler;
 
 #[derive(Debug)]
-struct DnsClient {
+pub struct DnsClient {
 	dns_addr: Ipv4Addr,
 	local_socket: UdpSocket,
 	dns_port: u16
@@ -379,16 +368,7 @@ impl ICarrier for DnsClient {
 
 }
 
-impl MessageHandler for DnsClient {
-	type Item = String;
 
-	fn on_msg_recv(message: &Message<Self::Item>)
-	{
-		println!("On msg recv function called");
-		println!("Received msg: {:?}", message);
-	}
-
-}
 
 fn main()
 {

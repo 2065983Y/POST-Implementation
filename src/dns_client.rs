@@ -1,9 +1,3 @@
-
-
-
-
-
-
 use std::net::{Ipv4Addr, UdpSocket};
 use std::fs::File;
 use std::process::exit;
@@ -370,13 +364,13 @@ impl ICarrier for DnsClient {
 
 
 
-fn main()
-{
-	let query_addr = String::from("www.google.co.uk");
+//fn main()
+//{
+//	let query_addr = String::from("www.google.co.uk");
 
-	let dns_client = DnsClient::new();
-	dns_client.query_addr(query_addr);
+//	let dns_client = DnsClient::new();
+//	dns_client.query_addr(query_addr);
 
 
-	println!("it's working jeff");
-}
+//	println!("it's working jeff");
+//}

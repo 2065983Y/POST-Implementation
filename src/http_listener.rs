@@ -59,6 +59,7 @@ impl listener::Listener for HttpListener {
 		let mut router = Router::new();
 
 		router.post("/message", Self::recv, "message_receipt");
+		router.get("/", hello_world, "index");
 
 
 		println!("Listening on port {}", local.port);
@@ -74,6 +75,12 @@ impl listener::Listener for HttpListener {
 	}
 
 }
+
+fn hello_world(_: &mut Request) -> IronResult<Response> {
+	println!("Recvd a request");
+    Ok(Response::with((status::Ok, "Hello World!")))
+}
+
 
 impl<'a, 'b, 'c> IReceivable<Message<myType>> for Vec<u8> {
 

@@ -13,6 +13,7 @@ serde_derive="*"
 num="*"
 num-derive="*"
 num-traits="*"
+curl="*"
 
 [[bin]]
 name = "server"

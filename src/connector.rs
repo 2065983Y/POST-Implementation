@@ -3,6 +3,7 @@ extern crate serde_derive;
 extern crate serde_json;
 extern crate hyper;
 extern crate iron;
+extern crate curl;
 
 mod remote;
 mod message;
@@ -13,6 +14,7 @@ mod iCarrier;
 use hyper::*;
 use hyper::client::IntoUrl;
 use std::io::Read;
+use curl::easy::Easy;
 
 use iCarrier::ICarrier;
 use remote::Remote;
@@ -24,6 +26,10 @@ use std::result::Result::Ok;
 use std::thread;
 use std::time::Duration;
 use std::sync::{Arc, Mutex};
+use std::sync::mpsc::{ channel, Sender };
+
+//temp
+use std::io::{stdout, Write};
 
 
 struct HttpClient<'a> {
@@ -48,6 +54,66 @@ impl<'a> HttpClient<'a> {
 			client: Client::new()
 		}
 	}
+
+	fn candidate_send(sender: Sender<RaceResult>, addr: String) {
+
+		let mut handle = Easy::new();
+
+		println!("Racing {}", addr);
+
+		//TODO: remove hardcode
+		let mut q_addr = "";		
+		if addr == "127.0.0.1" {
+			//thread::sleep_ms(2000);
+			q_addr = "http://127.0.0.1:3005/message";
+		} else {
+			//thread::sleep_ms(2000);
+			q_addr = "http://[::1]:3000/message";
+		}
+
+		println!("{}", q_addr);
+
+		handle.url(q_addr).unwrap();
+		handle.write_function(|data| {
+			Ok(stdout().write(data).unwrap())
+		}).unwrap();
+		handle.perform().unwrap();
+
+		sender.send(RaceResult{ addr: addr });
+	}
+
+	fn race(alts: Vec<String>) -> Option<IpAddr> {
+
+		println!("addrs to race: {:?}", alts);	
+
+		let (tx, rx) = channel();
+
+	//	thread::spawn(move || foo(tx));
+	//    thread::spawn(move || bar(tx2));
+
+		//alts.push(String::from("127.0.0.1"));	
+
+		for addr in alts {
+			let tx_clone = tx.clone();
+			thread::spawn(move || Self::candidate_send(tx_clone, addr));
+		}
+
+
+		match rx.recv() {
+		    // Ok(Wrapped::A(a)) => total_a += a,
+		    // Ok(Wrapped::B(b)) => total_b += b,
+		    Ok(i) => println!("got time {:?}", i),
+		    Err(c) => {println!("broken :( {:?}", c)},
+		    }
+
+		match "hi".parse() {
+			Ok(x) => return Some(x),
+			Err(_) => return None
+		}
+
+	}
+
+
 }
 
 impl iSendable::ISendable<Vec<u8>> for Message<Point<i32>> {
@@ -81,8 +147,11 @@ impl<'a> ICarrier for HttpClient<'a> {
 		if self.preferred_addr == None {
 			//TODO: remove clones, fix signatures
 			let mut a = self.preferred_addr.clone();
-			let b = self.query_addrs.clone();
-			a = race(b);
+			//let b = self.query_addrs.clone();
+			let mut b = self.query_addrs.clone();
+			b.push(String::from("127.0.0.1"));
+			b.push(String::from("::1"));
+			a = Self::race(b);
 			a = Some("0.0.0.0".parse().unwrap());
 			println!("{:?}", a);
 			println!("{:?}", self.preferred_addr);
@@ -122,10 +191,17 @@ impl<'a> ICarrier for HttpClient<'a> {
 
 }
 
+#[derive(Debug)]
+struct RaceResult {
+	addr: String
+	//TODO: add result
+}
 
-fn race(alts: Vec<String>) -> Option<IpAddr> {
 
-	println!("addrs to race: {:?}", alts);
+
+fn race_thr(alts: Vec<String>) -> Option<IpAddr> {
+
+	println!("addrs to race thr: {:?}", alts);
 
 	let fastest: Option<String> = None;
 	let fastest_mutex = Arc::new(Mutex::new(fastest));

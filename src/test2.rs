@@ -40,7 +40,7 @@ fn main()
 {
 	let query_addr = String::from("www.google.co.uk");
 
-	let dns_client = DnsClient::new();
+	let mut dns_client = DnsClient::new();
 	dns_client.query_addr(query_addr);
 
 

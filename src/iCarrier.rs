@@ -27,6 +27,6 @@ pub trait ICarrier {
 
 //	fn on_msg_rcv(message: &Message<Self::Item>);
 
-	fn send_msg<T>(&self, message: T) where T: ISendable<Self::Transmitter>;
+	fn send_msg<T>(&mut self, message: T) where T: ISendable<Self::Transmitter>;
 
 }

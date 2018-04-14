@@ -27,6 +27,7 @@ use std::thread;
 use std::time::Duration;
 use std::sync::{Arc, Mutex};
 use std::sync::mpsc::{ channel, Sender };
+use std::str::FromStr;
 
 //temp
 use std::io::{stdout, Write};
@@ -65,10 +66,10 @@ impl<'a> HttpClient<'a> {
 		let mut q_addr = "";		
 		if addr == "127.0.0.1" {
 			//thread::sleep_ms(2000);
-			q_addr = "http://127.0.0.1:3005/message";
+			q_addr = "http://127.0.0.1:3005";
 		} else {
 			//thread::sleep_ms(2000);
-			q_addr = "http://[::1]:3000/message";
+			q_addr = "http://[::1]:3000";
 		}
 
 		println!("{}", q_addr);
@@ -85,34 +86,28 @@ impl<'a> HttpClient<'a> {
 	fn race(alts: Vec<String>) -> Option<IpAddr> {
 
 		println!("addrs to race: {:?}", alts);	
-
 		let (tx, rx) = channel();
-
-	//	thread::spawn(move || foo(tx));
-	//    thread::spawn(move || bar(tx2));
-
-		//alts.push(String::from("127.0.0.1"));	
 
 		for addr in alts {
 			let tx_clone = tx.clone();
 			thread::spawn(move || Self::candidate_send(tx_clone, addr));
 		}
 
-
 		match rx.recv() {
-		    // Ok(Wrapped::A(a)) => total_a += a,
-		    // Ok(Wrapped::B(b)) => total_b += b,
-		    Ok(i) => println!("got time {:?}", i),
-		    Err(c) => {println!("broken :( {:?}", c)},
-		    }
-
-		match "hi".parse() {
-			Ok(x) => return Some(x),
-			Err(_) => return None
+		    Ok(i) => 
+				{
+					println!("Winner addr: {:?}", i);
+					return Some(i.get_ip_addr());
+				},
+		    Err(c) => 
+				{
+					//TODO: Handle error
+					println!("Error at conn racing :( {:?}", c);
+					return None;
+				},
 		}
 
 	}
-
 
 }
 
@@ -135,7 +130,7 @@ impl<'a> ICarrier for HttpClient<'a> {
 	type Item=Point<i32>;
 	type Transmitter=Vec<u8>;
 
-	fn send_msg<T>(&self, msg: T) where T: iSendable::ISendable<Vec<u8>> {
+	fn send_msg<T>(&mut self, msg: T) where T: iSendable::ISendable<Vec<u8>> {
 		let body_str = msg.encode();
 		println!("Decoded msg bytes: {:?}", body_str);
 
@@ -146,15 +141,17 @@ impl<'a> ICarrier for HttpClient<'a> {
 
 		if self.preferred_addr == None {
 			//TODO: remove clones, fix signatures
-			let mut a = self.preferred_addr.clone();
-			//let b = self.query_addrs.clone();
+
 			let mut b = self.query_addrs.clone();
+			println!("Preffered addrs {:?}", b);
+
+			//TODO: temp add addr to carrier
+			//TODO: push remotes
 			b.push(String::from("127.0.0.1"));
 			b.push(String::from("::1"));
-			a = Self::race(b);
-			a = Some("0.0.0.0".parse().unwrap());
-			println!("{:?}", a);
-			println!("{:?}", self.preferred_addr);
+
+			self.preferred_addr = Self::race(b);
+			println!("After race: {:?}", self.preferred_addr);
 		}
 		panic!();
 
@@ -195,8 +192,15 @@ impl<'a> ICarrier for HttpClient<'a> {
 struct RaceResult {
 	addr: String
 	//TODO: add result
+
 }
 
+impl RaceResult {
+
+	fn get_ip_addr(&self) -> IpAddr {
+		IpAddr::from_str(self.addr.as_str()).unwrap()
+	}
+}
 
 
 fn race_thr(alts: Vec<String>) -> Option<IpAddr> {
@@ -235,7 +239,7 @@ fn main() {
 	//let remote = Remote {preferred: Some(String::from("127.0.0.1")), alternatives: Vec::new(), port: 3005};
 
 	let remote = Remote::new(Some(String::from("127.0.0.1")), Vec::new(), 3005);
-	let http_client = HttpClient::new(&remote);
+	let mut http_client = HttpClient::new(&remote);
 
 	let msg = Message { data: Point {x: 5, y: 42} };
 	http_client.send_msg(msg);

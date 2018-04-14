@@ -109,7 +109,7 @@ impl DnsClient {
 		}
 	}
 
-	pub fn query_addr(&self, addr: String) {
+	pub fn query_addr(&mut self, addr: String) {
 		println!("Querying {}", addr);
 		
 		//TODO:
@@ -346,7 +346,7 @@ impl ICarrier for DnsClient {
 		Self::on_msg_recv(message);
 	}
 
-	fn send_msg<T>(&self, message: T) where T: ISendable<Self::Transmitter>
+	fn send_msg<T>(&mut self, message: T) where T: ISendable<Self::Transmitter>
 	{
 		let encoded = message.encode();
 		println!("{:?}", encoded);

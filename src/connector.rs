@@ -83,6 +83,7 @@ impl<'a> HttpClient<'a> {
 		sender.send(RaceResult{ addr: addr });
 	}
 
+
 	fn race(alts: Vec<String>) -> Option<IpAddr> {
 
 		println!("addrs to race: {:?}", alts);	
@@ -106,6 +107,42 @@ impl<'a> HttpClient<'a> {
 					return None;
 				},
 		}
+
+	}
+
+
+	fn send_post(bytes: Vec<u8>) -> Vec<u8>
+	{
+		let (tx, rx): (Sender<Vec<u8>>, _) = channel();
+		//let mut res :&[u8] = &[];
+
+		println!("{:?}", bytes);
+		let mut data = bytes.as_slice();	
+
+		let mut easy = Easy::new();
+
+
+		easy.url("http://127.0.0.1:3005/message").unwrap();
+		easy.post(true).unwrap();
+		easy.post_field_size(data.len() as u64).unwrap();
+
+		let mut transfer = easy.transfer();
+
+		transfer.read_function(|buf| {
+		    Ok(data.read(buf).unwrap_or(0))
+		}).unwrap();
+
+
+		transfer.write_function(|data| {
+			println!("{:?}", data);
+			tx.send(data.to_vec());
+			//res = data;
+			println!("string result:\\/ \n{}", String::from_utf8(data.to_vec()).unwrap());
+			Ok(data.len())
+		}).unwrap();
+
+		transfer.perform().unwrap();
+		rx.recv().unwrap()
 
 	}
 
@@ -134,12 +171,13 @@ impl<'a> ICarrier for HttpClient<'a> {
 		let body_str = msg.encode();
 		println!("Decoded msg bytes: {:?}", body_str);
 
-		let s = String::from_utf8(body_str).unwrap();
+		let s = String::from_utf8(body_str.clone()).unwrap();
 		println!("Decoded msg: {}", s);
 
 		//TODO: check if preffered address is set and use it, o/w race connections
 
 		if self.preferred_addr == None {
+			println!("no preferred addr, racing connections...");
 			//TODO: remove clones, fix signatures
 
 			let mut b = self.query_addrs.clone();
@@ -153,8 +191,13 @@ impl<'a> ICarrier for HttpClient<'a> {
 			self.preferred_addr = Self::race(b);
 			println!("After race: {:?}", self.preferred_addr);
 		}
-		panic!();
+		else {
+			println!("preferred addr is {:?}", self.preferred_addr);
 
+			let post_res = Self::send_post(body_str);
+		}
+
+		panic!();
 		let preferred = self.preferred_addr;
 		//println!("{:?}", self.query_addr);
 		let addr = format!("http://{}/message", self.preferred_addr.unwrap());
@@ -243,5 +286,8 @@ fn main() {
 
 	let msg = Message { data: Point {x: 5, y: 42} };
 	http_client.send_msg(msg);
+
+	let msg2 = Message { data: Point {x: 5, y: 42} };
+	http_client.send_msg(msg2);
 
 }

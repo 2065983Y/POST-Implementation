@@ -10,6 +10,10 @@ mod message;
 mod iSendable;
 mod iReceivable;
 mod iCarrier;
+mod message_handler;
+
+#[macro_use]
+mod type_info;
 
 use hyper::*;
 use hyper::client::IntoUrl;
@@ -20,6 +24,12 @@ use iCarrier::ICarrier;
 use remote::Remote;
 use message::Message;
 use message::Point;
+use iReceivable::IReceivable;
+use message_handler::MessageHandler;
+
+use type_info::TypeInfo;
+impl_type_info!(i32, i64, f32, f64, str, String, Vec<T>, Message<T>, Point<T>);
+
 
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::result::Result::Ok;
@@ -164,7 +174,7 @@ impl iSendable::ISendable<Vec<u8>> for Message<Point<i32>> {
 }
 
 impl<'a> ICarrier for HttpClient<'a> {
-	type Item=Point<i32>;
+	type Item=Point<f64>;
 	type Transmitter=Vec<u8>;
 
 	fn send_msg<T>(&mut self, msg: T) where T: iSendable::ISendable<Vec<u8>> {
@@ -179,6 +189,7 @@ impl<'a> ICarrier for HttpClient<'a> {
 		if self.preferred_addr == None {
 			println!("no preferred addr, racing connections...");
 			//TODO: remove clones, fix signatures
+
 
 			let mut b = self.query_addrs.clone();
 			println!("Preffered addrs {:?}", b);
@@ -195,40 +206,61 @@ impl<'a> ICarrier for HttpClient<'a> {
 			println!("preferred addr is {:?}", self.preferred_addr);
 
 			let post_res = Self::send_post(body_str);
+			Self::data_recv(post_res);
 		}
 
-		panic!();
-		let preferred = self.preferred_addr;
-		//println!("{:?}", self.query_addr);
-		let addr = format!("http://{}/message", self.preferred_addr.unwrap());
-		//let alt = "http://::1:3005/message".into_url();
-		//println!("{:?}", alt);
-	
-		//TODO: Send with cURL client, to support IPv6
-		let mut res = self.client.post(addr.as_str()).body(s.as_str()).send().unwrap();
-		//let mut res = self.client.post(alt.unwrap()).body(s.as_str()).send();
-		//println!("{:?}", res);
-		
-		//received msg functionality
-		//let mut res1 = res.unwrap();
-		assert_eq!(res.status, hyper::Ok);
-		let mut s = String::new();
-		res.read_to_string(&mut s).unwrap();
-		
-		println!("Response after send contained: {}", s);		
 
 	}
 
-	fn data_recv<T>(request: T) -> Message<Self::Item>
+	fn data_recv<T>(mut received: T) -> Message<Self::Item>
+	where T: IReceivable<Message<Self::Item>>
 	{
-		unimplemented!();
+		println!("Called data_recv");
+		let res = received.decode();
+		Self::msg_recv(&res);
+		res
 	}
 
 	fn msg_recv(message: &Message<Self::Item>) 
 	{
-		unimplemented!();		
+		println!("Message recv called");
+		Self::on_msg_recv(message);
 	}
 
+}
+
+
+impl IReceivable<Message<Point<f64>>> for Vec<u8>
+{
+
+	fn decode(&mut self) -> Message<Point<f64>> {
+		println!("Decoding...");
+
+//		println!("{:?}", self);
+//		let msg_str = String::from_utf8(self.to_vec()).unwrap();
+//		println!("String data {}", msg_str);
+//		let data: Message<Point<f64>> = serde_json::from_str(msg_str.as_str()).unwrap();
+//		println!("{}", data.data.x);
+//		println!("data from string {:?}", data);
+
+		let msg: Message<Point<f64>> = serde_json::from_slice(self).unwrap();
+
+//		let int_msg = Message {data: Point{ x: msg.data.x as i32, y: msg.data.y as i32}};
+//		int_msg
+		msg
+	}
+}
+
+impl<'a> MessageHandler for HttpClient<'a> {
+	type Item = Point<f64>;
+
+
+	fn on_msg_recv(message: &Message<Self::Item>)
+	{
+		println!("on msg recv called");
+		println!("{:?}", message);
+		println!("Type of message: {}", message.type_of());
+	}
 }
 
 #[derive(Debug)]

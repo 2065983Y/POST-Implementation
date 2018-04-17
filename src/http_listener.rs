@@ -62,10 +62,10 @@ impl listener::Listener for HttpListener {
 		router.get("/", hello_world, "index");
 
 
-		println!("Listening on port {}", local.port);
+		println!("Listening on {} {}", local.addr, local.port);
 
-//		ipv4
-		let setup = format!("{}:{}", "localhost", local.port);
+//		ipv4 and 6
+		let setup = format!("{}:{}", local.addr, local.port);
 
 //		ipv6
 //		let setup = format!("{}:{}", "::1", local.port);
@@ -117,7 +117,7 @@ where T: iReceivable::IReceivable<Message<Self::Item>> {
 	//	println!("{:?}", message);		
 	//}
 
-	fn send_msg<T>(&self, message: T) {
+	fn send_msg<T>(&mut self, message: T) {
 		
 
 	}

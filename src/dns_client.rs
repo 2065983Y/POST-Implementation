@@ -289,7 +289,6 @@ fn get_two_byte_value(msb: Option<&u8>, lsb: Option<&u8>) -> u32 {
 
 impl ISendable<Vec<u8>> for Message<(String, (u8, u8))> 
 {
-	type Item=(String, (u8,u8));
 
 	fn encode(&self) -> Vec<u8>
 	{

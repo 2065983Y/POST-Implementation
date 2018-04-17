@@ -159,7 +159,6 @@ impl<'a> HttpClient<'a> {
 }
 
 impl iSendable::ISendable<Vec<u8>> for Message<Point<i32>> {
-	type Item=Point<i32>;
 
 	fn encode(&self) -> Vec<u8>
 	{

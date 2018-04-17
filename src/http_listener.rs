@@ -52,8 +52,8 @@ impl HttpListener {
 
 }
 
-impl listener::Listener for HttpListener {
 
+impl listener::Listener for HttpListener {
 
 	fn listen(&self, local: local::Local) {
 		let mut router = Router::new();

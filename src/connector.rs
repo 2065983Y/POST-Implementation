@@ -316,10 +316,10 @@ fn main() {
 	let remote = Remote::new(Some(String::from("127.0.0.1")), Vec::new(), 3005);
 	let mut http_client = HttpClient::new(&remote);
 
-	let msg = Message { data: Point {x: 5, y: 42} };
+	let msg = Message::new(Point {x: 5, y: 42});
 	http_client.send_msg(msg);
 
-	let msg2 = Message { data: Point {x: 5, y: 42} };
+	let msg2 = Message::new(Point {x: 5, y: 42});
 	http_client.send_msg(msg2);
 
 }

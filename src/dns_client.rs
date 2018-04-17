@@ -92,7 +92,7 @@ impl DnsClient {
 		{
 			response_vec.push(x);
 		}
-		let msg = Message { data: response_vec };
+		let msg = Message::new(response_vec);
 		Self::data_recv(msg);
 		println!("Done reconsctructing message. Parsing messsage...");
 	}
@@ -115,7 +115,7 @@ impl DnsClient {
 		//TODO:
 		// call ICarrier send
 		println!("Client: {:?}", self);
-		let query = Message {data: (addr, (7,9)) };
+		let query = Message::new((addr, (7,9)));
 		self.send_msg(query);
 	}
 
@@ -127,7 +127,8 @@ impl IReceivable<Message<String>> for Message<Vec<u8>>
 	fn decode(&mut self) -> Message<String> {
 		println!("Decoding...");
 		//check messsage id
-		let mut iter = self.data.iter();
+		let msg_data = self.get_data();
+		let mut iter = msg_data.iter();
 
 		//TODO: Hardcoded, replace...
 		assert_byte(iter.next(), &(7 as u8), "First byte of response id needs to be the same.");
@@ -219,7 +220,7 @@ impl IReceivable<Message<String>> for Message<Vec<u8>>
 		println!("Raw data: {:?}", self);
 		println!("Devoded: {}", decodedStr);
 
-		Message{ data: format!("{}", decodedStr) }
+		Message::new(format!("{}", decodedStr))
 	}
 
 }
@@ -293,8 +294,8 @@ impl ISendable<Vec<u8>> for Message<(String, (u8, u8))>
 	fn encode(&self) -> Vec<u8>
 	{
 		let mut result: Vec<u8> = Vec::new();
-		result.push((&self.data.1).0); // message id 1
-		result.push((&self.data.1).1); // message id 2
+		result.push((&self.get_data().1).0); // message id 1
+		result.push((&self.get_data().1).1); // message id 2
 		result.push(0x01); // qr, opcode, aa, tc, rd
 		result.push(0x00); // ra, res1, res2, res3, rcode
 		result.push(0x00); // qdcount 1
@@ -306,7 +307,7 @@ impl ISendable<Vec<u8>> for Message<(String, (u8, u8))>
 		result.push(0x00); // arcount 1
 		result.push(0x00); // arcount 2
 
-		for p in (&self.data.0).split(".") {
+		for p in (&self.get_data().0).split(".") {
 		  result.push(p.as_bytes().len() as u8); // length
 		  for &c in p.as_bytes() {
 		    result.push(c as u8); // query

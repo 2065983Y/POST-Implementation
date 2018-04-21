@@ -43,7 +43,7 @@ impl HttpListener {
 		let mut body_data = Vec::new();
 		request.body.read_to_end(&mut body_data);
 
-		let data = Self::data_recv(body_data);	
+		let mut data = Self::data_recv(body_data);
 
 		let payload = serde_json::to_string(&data).unwrap();		
 		
@@ -109,7 +109,7 @@ where T: iReceivable::IReceivable<Message<Self::Item>> {
     }
 
 	fn msg_recv(message: &Message<Self::Item>) {
-		println!("Received a message");
+		println!("Received a message partial? {}", message.is_partial());
 		Self::on_msg_recv(message);
 	}
 

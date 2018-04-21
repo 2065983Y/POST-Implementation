@@ -10,6 +10,7 @@ pub struct Message<T> {
 	uid: i64,
 	successors: Vec<i64>,
 	is_partial: bool,
+	chunks: u64,
 	is_immediate: bool,
 	is_idempotent: bool,
 	lifetime: u32,
@@ -24,6 +25,7 @@ impl <T> Message<T> {
 			uid: 0,
 			successors: Vec::new(),
 			is_partial: false,
+			chunks: 0,
 			is_immediate: false,
 			is_idempotent: false,
 			lifetime: 0,
@@ -35,6 +37,20 @@ impl <T> Message<T> {
 	pub fn get_data(&self) -> &T
 	{
 		&self.data
+	}
+
+	pub fn is_partial(&self) -> bool
+	{
+		*&self.is_partial
+	}
+
+	pub fn set_partial(&mut self, val: bool)
+	{
+		self.is_partial = val;
+	}
+
+	pub fn set_fields(&mut self, fields: Value) {
+		self.extra_fields = fields;
 	}
 }
 

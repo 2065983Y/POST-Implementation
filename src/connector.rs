@@ -47,7 +47,7 @@ struct HttpClient<'a> {
 
 	r: &'a Remote,
 	//query_addr: String,
-	query_addrs: Vec<String>,
+	query_addrs: Vec<(String, String)>,
 	preferred_addr: Option<IpAddr>,
 	client: Client
 
@@ -66,15 +66,15 @@ impl<'a> HttpClient<'a> {
 		}
 	}
 
-	fn candidate_send(sender: Sender<RaceResult>, addr: String) {
+	fn candidate_send(sender: Sender<RaceResult>, addr_port: (String, String), post_data: Vec<u8>) {
 
 		let mut handle = Easy::new();
 
-		println!("Racing {}", addr);
+		println!("Racing {}", addr_port.0);
 
 		//TODO: remove hardcode
 		let mut q_addr = "";		
-		if addr == "127.0.0.1" {
+		if addr_port.0 == "127.0.0.1" {
 			//thread::sleep_ms(2000);
 			q_addr = "http://127.0.0.1:3005";
 		} else {
@@ -82,27 +82,33 @@ impl<'a> HttpClient<'a> {
 			q_addr = "http://[::1]:3000";
 		}
 
-		println!("{}", q_addr);
+//		println!{"http://{}:{}", addr_port.0, addr_port.1}
+//		println!("{}", q_addr);
 
-		handle.url(q_addr).unwrap();
-		handle.write_function(|data| {
-			Ok(stdout().write(data).unwrap())
-		}).unwrap();
-		handle.perform().unwrap();
+		let res = Self::send_post(post_data);
+//		handle.url(q_addr).unwrap();
+//		handle.write_function(|data| {
+//			Ok(stdout().write(data).unwrap())
+//		}).unwrap();
+//		handle.perform().unwrap();
+		Self::data_recv(res);
 
-		sender.send(RaceResult{ addr: addr });
+		sender.send(RaceResult{ addr: addr_port.0, port: addr_port.1 });
 	}
 
 
-	fn race(alts: Vec<String>) -> Option<IpAddr> {
+	fn race(alts: Vec<(String, String)>, post_data: Vec<u8>) -> Option<IpAddr> {
 
 		println!("addrs to race: {:?}", alts);	
 		let (tx, rx) = channel();
 
-		for addr in alts {
+
+		for (addr, port) in alts {
 			let tx_clone = tx.clone();
-			thread::spawn(move || Self::candidate_send(tx_clone, addr));
+			let pd = post_data.clone();
+			thread::spawn(move || Self::candidate_send(tx_clone, (addr, port), pd));
 		}
+	
 
 		match rx.recv() {
 		    Ok(i) => 
@@ -126,7 +132,7 @@ impl<'a> HttpClient<'a> {
 		let (tx, rx): (Sender<Vec<u8>>, _) = channel();
 		//let mut res :&[u8] = &[];
 
-		println!("{:?}", bytes);
+//		println!("{:?}", bytes);
 		let mut data = bytes.as_slice();	
 
 		let mut easy = Easy::new();
@@ -144,10 +150,10 @@ impl<'a> HttpClient<'a> {
 
 
 		transfer.write_function(|data| {
-			println!("{:?}", data);
+//			println!("{:?}", data);
 			tx.send(data.to_vec());
 			//res = data;
-			println!("string result:\\/ \n{}", String::from_utf8(data.to_vec()).unwrap());
+//			println!("string result:\\/ \n{}", String::from_utf8(data.to_vec()).unwrap());
 			Ok(data.len())
 		}).unwrap();
 
@@ -162,12 +168,12 @@ impl iSendable::ISendable<Vec<u8>> for Message<Point<i32>> {
 
 	fn encode(&self) -> Vec<u8>
 	{
-		println!("Msg in mehtod: {:?}", self);
+//		println!("Msg in mehtod: {:?}", self);
 		let pl = serde_json::to_string(&self).unwrap();
 		let b = "{\"data\": {\"x\": 5, \"y\": 42}}";
 		//let _: () = b;
-		println!("{}", pl);
-		println!("{}", b);
+//		println!("{}", pl);
+//		println!("{}", b);
 		pl.as_bytes().to_vec()		
 	}
 }
@@ -178,10 +184,10 @@ impl<'a> ICarrier for HttpClient<'a> {
 
 	fn send_msg<T>(&mut self, msg: T) where T: iSendable::ISendable<Vec<u8>> {
 		let body_str = msg.encode();
-		println!("Decoded msg bytes: {:?}", body_str);
+//		println!("Decoded msg bytes: {:?}", body_str);
 
 		let s = String::from_utf8(body_str.clone()).unwrap();
-		println!("Decoded msg: {}", s);
+//		println!("Decoded msg: {}", s);
 
 		//TODO: check if preffered address is set and use it, o/w race connections
 
@@ -191,15 +197,15 @@ impl<'a> ICarrier for HttpClient<'a> {
 
 
 			let mut b = self.query_addrs.clone();
-			println!("Preffered addrs {:?}", b);
+//			println!("Setting preffered addrs to {:?}", b);
 
 			//TODO: temp add addr to carrier
 			//TODO: push remotes
-			b.push(String::from("127.0.0.1"));
-			b.push(String::from("::1"));
+			b.push((String::from("127.0.0.1"), String::from("3005")));
+//			b.push(String::from("::1"));
 
-			self.preferred_addr = Self::race(b);
-			println!("After race: {:?}", self.preferred_addr);
+			self.preferred_addr = Self::race(b, body_str);
+			println!("Setting preferred addrs to: {:?}", self.preferred_addr);
 		}
 		else {
 			println!("preferred addr is {:?}", self.preferred_addr);
@@ -214,7 +220,7 @@ impl<'a> ICarrier for HttpClient<'a> {
 	fn data_recv<T>(mut received: T) -> Message<Self::Item>
 	where T: IReceivable<Message<Self::Item>>
 	{
-		println!("Called data_recv");
+//		println!("Called data_recv");
 		let res = received.decode();
 		Self::msg_recv(&res);
 		res
@@ -222,7 +228,7 @@ impl<'a> ICarrier for HttpClient<'a> {
 
 	fn msg_recv(message: &Message<Self::Item>) 
 	{
-		println!("Message recv called");
+//		println!("Message recv called");
 		Self::on_msg_recv(message);
 	}
 
@@ -233,7 +239,7 @@ impl IReceivable<Message<Point<f64>>> for Vec<u8>
 {
 
 	fn decode(&mut self) -> Message<Point<f64>> {
-		println!("Decoding...");
+//		println!("Decoding...");
 
 //		println!("{:?}", self);
 //		let msg_str = String::from_utf8(self.to_vec()).unwrap();
@@ -264,7 +270,8 @@ impl<'a> MessageHandler for HttpClient<'a> {
 
 #[derive(Debug)]
 struct RaceResult {
-	addr: String
+	addr: String,
+	port: String
 	//TODO: add result
 
 }
@@ -272,7 +279,11 @@ struct RaceResult {
 impl RaceResult {
 
 	fn get_ip_addr(&self) -> IpAddr {
-		IpAddr::from_str(self.addr.as_str()).unwrap()
+		let clone = self.addr.clone();
+		let mut res = clone.trim_matches('[');
+		res = res.trim_matches(']');
+//		println!("res {}", res);
+		IpAddr::from_str(res).expect(format!("Cannot decode {} as ip address", res).as_str())
 	}
 }
 
@@ -312,11 +323,16 @@ fn main() {
 
 	//let remote = Remote {preferred: Some(String::from("127.0.0.1")), alternatives: Vec::new(), port: 3005};
 
-	let remote = Remote::new(Some(String::from("127.0.0.1")), Vec::new(), 3005);
+	let alternatives = vec![(String::from("[::1]"), String::from("3006"))];
+
+	let remote = Remote::new(Some(String::from("127.0.0.1")), alternatives, 3005);
 	let mut http_client = HttpClient::new(&remote);
 
 	let msg = Message::new(Point {x: 5, y: 42});
 	http_client.send_msg(msg);
+
+	thread::sleep_ms(1000);
+	println!("------Sending second message------");
 
 	let msg2 = Message::new(Point {x: 5, y: 42});
 	http_client.send_msg(msg2);

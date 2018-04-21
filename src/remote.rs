@@ -3,13 +3,13 @@
 #[derive(Debug)]
 pub struct Remote {
 	pub preferred: Option<String>,
-	alternatives: Vec<String>,
+	alternatives: Vec<(String, String)>,
 	pub port: i32
 }
 
 impl Remote {
 
-	pub fn new(preferred: Option<String>, alternatives: Vec<String>, port: i32) -> Self {
+	pub fn new(preferred: Option<String>, alternatives: Vec<(String, String)>, port: i32) -> Self {
 		Self {
 			preferred: preferred,
 			alternatives: alternatives,
@@ -25,7 +25,7 @@ impl Remote {
 		None
 	}
 
-	pub fn get_query_addrs(&self) -> Vec<String> {
-		Vec::new()
+	pub fn get_query_addrs(&self) -> Vec<(String, String)> {
+		self.alternatives.clone()
 	}
 }

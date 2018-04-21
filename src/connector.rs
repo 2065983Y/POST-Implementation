@@ -11,6 +11,7 @@ mod iSendable;
 mod iReceivable;
 mod iCarrier;
 mod message_handler;
+mod transient;
 
 #[macro_use]
 mod type_info;
@@ -26,12 +27,15 @@ use message::Message;
 use message::Point;
 use iReceivable::IReceivable;
 use message_handler::MessageHandler;
+use transient::Transient;
+
 
 use type_info::TypeInfo;
 impl_type_info!(i32, i64, f32, f64, str, String, Vec<T>, Message<T>, Point<T>);
 
 
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+use std::net::TcpStream;
 use std::result::Result::Ok;
 use std::thread;
 use std::time::Duration;
@@ -49,7 +53,8 @@ struct HttpClient<'a> {
 	//query_addr: String,
 	query_addrs: Vec<(String, String)>,
 	preferred_addr: Option<IpAddr>,
-	client: Client
+	client: Client,
+	transient: Transient
 
 }
 
@@ -57,12 +62,27 @@ impl<'a> HttpClient<'a> {
 
 	fn new(r: &'a Remote) -> Self {
 
+		//do racing here
+
+		let addrs = r.get_query_addrs();
+
+		let mut buff = addrs.clone();
+
+		//TODO: temp add addr to carrier
+		//TODO: push remotes
+		buff.push((String::from("127.0.0.1"), String::from("3005")));
+
+		let (transient, stream) = Self::race(buff).unwrap();
+        let pref_addr = Some(stream.peer_addr().unwrap().ip());
+		println!("Setting preferred addrs to: {:?}", pref_addr);
+
 		Self {
 			r: r,
 			//query_addr: r.get_query_addr(),
-			query_addrs: r.get_query_addrs(),
-			preferred_addr: None,
-			client: Client::new()
+			query_addrs: addrs,
+			preferred_addr: pref_addr,
+			client: Client::new(),
+			transient: transient
 		}
 	}
 
@@ -96,33 +116,56 @@ impl<'a> HttpClient<'a> {
 		sender.send(RaceResult{ addr: addr_port.0, port: addr_port.1 });
 	}
 
+	fn candidate_connect(sender: Sender<TcpStream>, addr_port: (String, String))
+    {
+        println!("Racing {:?}", addr_port);
+ 
+        let mut to_race = format!("{}:{}", addr_port.0, addr_port.1);
+//        if addr_port.0 == "127.0.0.1" {
+//            to_race = "127.0.0.1:3005";
+//        } else {
+//            to_race = "[::1]:3006";
+//        }
+ 
+        let mut stream = TcpStream::connect(to_race);
+ 
+        match stream {
+            Ok(s) => { sender.send( s ); }
+            Err(_) => { println!("Fail...")}
+        }
+ 
+ 
+       
+    }
 
-	fn race(alts: Vec<(String, String)>, post_data: Vec<u8>) -> Option<IpAddr> {
+
+	fn race(alts: Vec<(String, String)>) -> Option<(Transient, TcpStream)> {
 
 		println!("addrs to race: {:?}", alts);	
 		let (tx, rx) = channel();
 
 
-		for (addr, port) in alts {
-			let tx_clone = tx.clone();
-			let pd = post_data.clone();
-			thread::spawn(move || Self::candidate_send(tx_clone, (addr, port), pd));
-		}
-	
-
-		match rx.recv() {
-		    Ok(i) => 
-				{
-					println!("Winner addr: {:?}", i);
-					return Some(i.get_ip_addr());
-				},
-		    Err(c) => 
-				{
-					//TODO: Handle error
-					println!("Error at conn racing :( {:?}", c);
-					return None;
-				},
-		}
+		for addr in alts {
+            let tx_clone = tx.clone();
+            thread::spawn(move || Self::candidate_connect(tx_clone, addr));
+        }
+ 
+        match rx.recv() {
+            Ok(stream) =>
+            {
+				let af = format!("{}", stream.peer_addr().unwrap().ip());
+				let transport = String::from("Stream");
+				let transient = Transient::new(af, transport);
+                println!("Winner addr: {:?}", stream.peer_addr().unwrap().ip());
+                return Some((transient, stream))
+            },
+            Err(c) =>
+            {
+                //TODO: Handle error
+                println!("Error at conn racing :( {:?}", c);
+                return None;
+            },
+        }
 
 	}
 
@@ -204,16 +247,17 @@ impl<'a> ICarrier for HttpClient<'a> {
 			b.push((String::from("127.0.0.1"), String::from("3005")));
 //			b.push(String::from("::1"));
 
-			self.preferred_addr = Self::race(b, body_str);
+			let (transient, stream) = Self::race(b).unwrap();
+			self.transient = transient;
+            self.preferred_addr = Some(stream.peer_addr().unwrap().ip());
 			println!("Setting preferred addrs to: {:?}", self.preferred_addr);
 		}
 		else {
 			println!("preferred addr is {:?}", self.preferred_addr);
-
-			let post_res = Self::send_post(body_str);
-			Self::data_recv(post_res);
 		}
 
+		let post_res = Self::send_post(body_str);
+		Self::data_recv(post_res);
 
 	}
 
@@ -330,11 +374,5 @@ fn main() {
 
 	let msg = Message::new(Point {x: 5, y: 42});
 	http_client.send_msg(msg);
-
-	thread::sleep_ms(1000);
-	println!("------Sending second message------");
-
-	let msg2 = Message::new(Point {x: 5, y: 42});
-	http_client.send_msg(msg2);
 
 }

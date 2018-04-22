@@ -18,10 +18,10 @@ pub trait ICarrier {
 	
 	fn init(self) -> Self;
 
-	fn data_recv<T>(received: T) -> Option<Message<Self::Item>>
-		where T: IReceivable<Message<Self::Item>>;
+	fn data_recv<T>(received: T) -> Option<Self::Item>
+		where T: IReceivable<Self::Item>;
 
-	fn msg_recv(message: &Message<Self::Item> );
+	fn msg_recv(message: &Self::Item );
 	//TODO: Default impl, find a way to restrict self to impl MessageHandler
 	//{
 	//	self.on_msg_recv(message);

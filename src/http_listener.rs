@@ -82,13 +82,13 @@ fn hello_world(_: &mut Request) -> IronResult<Response> {
 }
 
 
-impl<'a, 'b, 'c> IReceivable<Message<myType>> for Vec<u8> {
+impl<'a, 'b, 'c> IReceivable<myType> for Vec<u8> {
 
-	fn decode(&mut self) -> Option<Message<myType>> {
+	fn decode(&mut self) -> Option<myType> {
 
 		println!("{:?}", self);
 
-		let v: Message<myType> = serde_json::from_slice(self).unwrap();
+		let v: myType = serde_json::from_slice(self).unwrap();
 		println!("{:?}", v);
 
 		Some(v)
@@ -104,8 +104,8 @@ impl ICarrier for HttpListener {
 		self
 	}
 
-	fn data_recv<T>(mut received: T) -> Option<Message<Self::Item>>
-where T: iReceivable::IReceivable<Message<Self::Item>> {
+	fn data_recv<T>(mut received: T) -> Option<Self::Item>
+where T: iReceivable::IReceivable<Self::Item> {
 
 		let msg = received.decode();
 		let res = msg.unwrap();		
@@ -113,7 +113,7 @@ where T: iReceivable::IReceivable<Message<Self::Item>> {
 		Some(res)
     }
 
-	fn msg_recv(message: &Message<Self::Item>) {
+	fn msg_recv(message: &Self::Item) {
 		//println!("Received a message partial? {}", message.is_partial());
 		Self::on_msg_recv(message);
 	}
@@ -131,7 +131,7 @@ where T: iReceivable::IReceivable<Message<Self::Item>> {
 impl MessageHandler for HttpListener {
 	type Item = myType;
 
-	fn on_msg_recv(message: &Message<Self::Item>) 
+	fn on_msg_recv(message: &Self::Item) 
 	{
 		println!("On Msg Recv fn called with msg: {:?}", message);
 	}

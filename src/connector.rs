@@ -199,7 +199,7 @@ impl iSendable::ISendable<Vec<u8>> for Message<Point<i32>> {
 	fn encode(&self) -> Vec<u8>
 	{
 //		println!("Msg in mehtod: {:?}", self);
-		let pl = serde_json::to_string(&self).unwrap();
+		let pl = serde_json::to_string(&self.get_data()).unwrap();
 		let b = "{\"data\": {\"x\": 5, \"y\": 42}}";
 		//let _: () = b;
 //		println!("{}", pl);
@@ -271,8 +271,8 @@ impl<'a> ICarrier for HttpClient<'a> {
 
 	}
 
-	fn data_recv<T>(mut received: T) -> Option<Message<Self::Item>>
-	where T: IReceivable<Message<Self::Item>>
+	fn data_recv<T>(mut received: T) -> Option<Self::Item>
+	where T: IReceivable<Self::Item>
 	{
 //		println!("Called data_recv");
 
@@ -289,7 +289,7 @@ impl<'a> ICarrier for HttpClient<'a> {
 
 	}
 
-	fn msg_recv(message: &Message<Self::Item>) 
+	fn msg_recv(message: &Self::Item) 
 	{
 //		println!("Message recv called");
 		Self::on_msg_recv(message);
@@ -298,10 +298,10 @@ impl<'a> ICarrier for HttpClient<'a> {
 }
 
 
-impl IReceivable<Message<Point<f64>>> for Vec<u8>
+impl IReceivable<Point<f64>> for Vec<u8>
 {
 
-	fn decode(&mut self) -> Option<Message<Point<f64>>> {
+	fn decode(&mut self) -> Option<Point<f64>> {
 //		println!("Decoding...");
 
 //		println!("{:?}", self);
@@ -327,7 +327,7 @@ impl<'a> MessageHandler for HttpClient<'a> {
 	type Item = Point<f64>;
 
 
-	fn on_msg_recv(message: &Message<Self::Item>)
+	fn on_msg_recv(message: &Self::Item)
 	{
 		println!("on msg recv called");
 		println!("{:?}", message);

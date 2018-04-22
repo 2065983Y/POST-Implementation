@@ -100,6 +100,10 @@ impl ICarrier for HttpListener {
 	type Item = myType;
 	type Transmitter = Message<Vec<u8>>;
 
+	fn init(self) -> Self {
+		self
+	}
+
 	fn data_recv<T>(mut received: T) -> Message<Self::Item>
 where T: iReceivable::IReceivable<Message<Self::Item>> {
 

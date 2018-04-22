@@ -28,6 +28,7 @@ use message::Point;
 use iReceivable::IReceivable;
 use message_handler::MessageHandler;
 use transient::Transient;
+use transient::Transport;
 
 
 use type_info::TypeInfo;
@@ -54,7 +55,7 @@ struct HttpClient<'a> {
 	query_addrs: Vec<(String, String)>,
 	preferred_addr: Option<IpAddr>,
 	client: Client,
-	transient: Transient
+	transient: Option<Transient>
 
 }
 
@@ -62,27 +63,13 @@ impl<'a> HttpClient<'a> {
 
 	fn new(r: &'a Remote) -> Self {
 
-		//do racing here
-
-		let addrs = r.get_query_addrs();
-
-		let mut buff = addrs.clone();
-
-		//TODO: temp add addr to carrier
-		//TODO: push remotes
-		buff.push((String::from("127.0.0.1"), String::from("3005")));
-
-		let (transient, stream) = Self::race(buff).unwrap();
-        let pref_addr = Some(stream.peer_addr().unwrap().ip());
-		println!("Setting preferred addrs to: {:?}", pref_addr);
-
 		Self {
 			r: r,
-			//query_addr: r.get_query_addr(),
-			query_addrs: addrs,
-			preferred_addr: pref_addr,
+			query_addrs: r.get_query_addrs(),
+		//	query_addrs: addrs,
+			preferred_addr: None,
 			client: Client::new(),
-			transient: transient
+			transient: None
 		}
 	}
 
@@ -153,8 +140,8 @@ impl<'a> HttpClient<'a> {
         match rx.recv() {
             Ok(stream) =>
             {
-				let af = format!("{}", stream.peer_addr().unwrap().ip());
-				let transport = String::from("Stream");
+				let af = stream.peer_addr().unwrap().ip();
+				let transport = Transport::stream;//String::from("Stream");
 				let transient = Transient::new(af, transport);
                 println!("Winner addr: {:?}", stream.peer_addr().unwrap().ip());
                 return Some((transient, stream))
@@ -225,6 +212,24 @@ impl<'a> ICarrier for HttpClient<'a> {
 	type Item=Point<f64>;
 	type Transmitter=Vec<u8>;
 
+	fn init(mut self) -> Self {
+		let addrs = self.r.get_query_addrs();
+		let mut buff = addrs.clone();
+
+		//TODO: temp add addr to carrier
+		//TODO: push remotes
+		buff.push((String::from("127.0.0.1"), String::from("3005")));
+
+		let (transient, stream) = Self::race(buff).unwrap();
+        let pref_addr = Some(stream.peer_addr().unwrap().ip());
+		println!("Setting preferred addrs to: {:?}", pref_addr);
+
+		self.preferred_addr = pref_addr;
+		self.transient = Some(transient);
+
+		self
+	}
+
 	fn send_msg<T>(&mut self, msg: T) where T: iSendable::ISendable<Vec<u8>> {
 		let body_str = msg.encode();
 //		println!("Decoded msg bytes: {:?}", body_str);
@@ -248,7 +253,7 @@ impl<'a> ICarrier for HttpClient<'a> {
 //			b.push(String::from("::1"));
 
 			let (transient, stream) = Self::race(b).unwrap();
-			self.transient = transient;
+			self.transient = Some(transient);
             self.preferred_addr = Some(stream.peer_addr().unwrap().ip());
 			println!("Setting preferred addrs to: {:?}", self.preferred_addr);
 		}

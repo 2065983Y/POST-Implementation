@@ -330,6 +330,10 @@ impl ICarrier for DnsClient {
 	type Item = String;
 	type Transmitter = Vec<u8>;
 
+	fn init(self) -> Self {
+		self
+	}
+
 	// TODO: can we get around passing mut arg?
 	fn data_recv<T>(mut received: T) -> Message<Self::Item>
 		where T: IReceivable<Message<Self::Item>>

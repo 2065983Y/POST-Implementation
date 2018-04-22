@@ -14,7 +14,8 @@ use iReceivable::IReceivable;
 pub trait ICarrier {
 	type Item; // Type of messages the carrier will work with
 	type Transmitter;
-	//fn init(&self, remote: Remote) -> Box<ICarrier>;
+	
+	fn init(self) -> Self;
 
 	fn data_recv<T>(received: T) -> Message<Self::Item>
 		where T: IReceivable<Message<Self::Item>>;

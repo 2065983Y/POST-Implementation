@@ -84,14 +84,14 @@ fn hello_world(_: &mut Request) -> IronResult<Response> {
 
 impl<'a, 'b, 'c> IReceivable<Message<myType>> for Vec<u8> {
 
-	fn decode(&mut self) -> Message<myType> {
+	fn decode(&mut self) -> Option<Message<myType>> {
 
 		println!("{:?}", self);
 
 		let v: Message<myType> = serde_json::from_slice(self).unwrap();
 		println!("{:?}", v);
 
-		v
+		Some(v)
 	}
 }
 
@@ -104,16 +104,17 @@ impl ICarrier for HttpListener {
 		self
 	}
 
-	fn data_recv<T>(mut received: T) -> Message<Self::Item>
+	fn data_recv<T>(mut received: T) -> Option<Message<Self::Item>>
 where T: iReceivable::IReceivable<Message<Self::Item>> {
 
 		let msg = received.decode();
-		Self::msg_recv(&msg);
-		msg
+		let res = msg.unwrap();		
+		Self::msg_recv(&res);
+		Some(res)
     }
 
 	fn msg_recv(message: &Message<Self::Item>) {
-		println!("Received a message partial? {}", message.is_partial());
+		//println!("Received a message partial? {}", message.is_partial());
 		Self::on_msg_recv(message);
 	}
 

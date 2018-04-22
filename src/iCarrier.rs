@@ -10,6 +10,7 @@ use message::Message;
 //use message::Point;
 use iSendable::ISendable;
 use iReceivable::IReceivable;
+use std::iter::Iterator;
 
 pub trait ICarrier {
 	type Item; // Type of messages the carrier will work with
@@ -17,7 +18,7 @@ pub trait ICarrier {
 	
 	fn init(self) -> Self;
 
-	fn data_recv<T>(received: T) -> Message<Self::Item>
+	fn data_recv<T>(received: T) -> Option<Message<Self::Item>>
 		where T: IReceivable<Message<Self::Item>>;
 
 	fn msg_recv(message: &Message<Self::Item> );

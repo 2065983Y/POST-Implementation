@@ -262,17 +262,31 @@ impl<'a> ICarrier for HttpClient<'a> {
 		}
 
 		let post_res = Self::send_post(body_str);
-		Self::data_recv(post_res);
+		let mut buff = Vec::new();
+		buff.extend(post_res[..10].to_vec());
+		Self::data_recv(post_res[..10].to_vec());
+		buff.extend(post_res[10..].to_vec());
+		//println!("{}, {}", post_res.len(), buff.len());
+		Self::data_recv(buff);
 
 	}
 
-	fn data_recv<T>(mut received: T) -> Message<Self::Item>
+	fn data_recv<T>(mut received: T) -> Option<Message<Self::Item>>
 	where T: IReceivable<Message<Self::Item>>
 	{
 //		println!("Called data_recv");
+
 		let res = received.decode();
-		Self::msg_recv(&res);
-		res
+		match res {
+			Some(msg) =>
+			{
+				//let msg = res.unwrap();
+				Self::msg_recv(&msg);
+				Some(msg)
+			}
+			_ => { println!("Could not reassemble message"); None }
+		}
+
 	}
 
 	fn msg_recv(message: &Message<Self::Item>) 
@@ -287,7 +301,7 @@ impl<'a> ICarrier for HttpClient<'a> {
 impl IReceivable<Message<Point<f64>>> for Vec<u8>
 {
 
-	fn decode(&mut self) -> Message<Point<f64>> {
+	fn decode(&mut self) -> Option<Message<Point<f64>>> {
 //		println!("Decoding...");
 
 //		println!("{:?}", self);
@@ -297,11 +311,15 @@ impl IReceivable<Message<Point<f64>>> for Vec<u8>
 //		println!("{}", data.data.x);
 //		println!("data from string {:?}", data);
 
-		let msg: Message<Point<f64>> = serde_json::from_slice(self).unwrap();
+		let msg = serde_json::from_slice(self);
+		match (msg) {
+			Ok(item) => { return Some(item); }
+			Err(_) => { return None;}
+		}
+
 
 //		let int_msg = Message {data: Point{ x: msg.data.x as i32, y: msg.data.y as i32}};
 //		int_msg
-		msg
 	}
 }
 

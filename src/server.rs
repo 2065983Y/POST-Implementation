@@ -24,7 +24,7 @@ fn main() {
 	//let http_carier = http_carier::init();
 //	println!("{:?}", remote);
 
-	let local = local::Local {addr: String::from("::1"), port: 3006};
+	let local = local::Local {addr: String::from("127.0.0.1"), port: 3005};
 	let listener = http_listener::HttpListener::new();	
 	listener.listen(local);
 }

@@ -63,14 +63,17 @@ impl<'a> HttpClient<'a> {
 
 	fn new(r: &'a Remote) -> Self {
 
-		Self {
+
+		let client = Self {
 			r: r,
 			query_addrs: r.get_query_addrs(),
 		//	query_addrs: addrs,
 			preferred_addr: None,
 			client: Client::new(),
 			transient: None
-		}
+		};
+
+		client.init()
 	}
 
 	fn candidate_send(sender: Sender<RaceResult>, addr_port: (String, String), post_data: Vec<u8>) {
@@ -396,6 +399,6 @@ fn main() {
 	let mut http_client = HttpClient::new(&remote);
 
 	let msg = Message::new(Point {x: 5, y: 42});
-	http_client.send_msg(msg);
+	//http_client.send_msg(msg);
 
 }
